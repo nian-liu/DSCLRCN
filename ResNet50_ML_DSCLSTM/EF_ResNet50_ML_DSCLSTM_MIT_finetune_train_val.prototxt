@@ -4589,37 +4589,71 @@ layer {
     }
   }
 }
-layer {
-  name: "FCN7_reshape"
-  type: "Reshape"
-  bottom: "FCN7"
-  top: "FCN7_reshape"
-  reshape_param {
-    shape {
-      dim: 0
-      dim: 4800
-    }
-  }
-}
-layer {
-  name: "sm_softmax"
-  type: "Softmax"
-  bottom: "FCN7_reshape"
-  top: "sm_softmax"
-}
+#layer {
+#  name: "FCN7_reshape"
+#  type: "Reshape"
+#  bottom: "FCN7"
+#  top: "FCN7_reshape"
+#  reshape_param {
+#    shape {
+#      dim: 0
+#      dim: 4800
+#    }
+#  }
+#}
+#layer {
+#  name: "sm_softmax"
+#  type: "Softmax"
+#  bottom: "FCN7_reshape"
+#  top: "sm_softmax"
+#}
+#layer {
+#  name: "sm"
+#  type: "Reshape"
+#  bottom: "sm_softmax"
+#  top: "sm"
+#  reshape_param {
+#    shape {
+#      dim: 0
+#      dim: 1
+#      dim: 60
+#      dim: 80
+#    }
+#  }
+#}
+#layer {
+#  name: "upsample"
+#  type: "Deconvolution"
+#  bottom: "sm"
+#  top: "upsampledSm"
+#  param {
+#    lr_mult: 0
+#    decay_mult: 0
+#  }
+#  convolution_param {
+#    num_output: 1
+#    bias_term: false
+#    pad: 4
+#    kernel_size: 16
+#    group: 1
+#    stride: 8
+#    weight_filler {
+#      type: "bilinear"
+#    }
+#  }
+#}
+#layer {
+#  name: "loss"
+#  type: "KLDivLoss"
+#  bottom: "upsampledSm"
+#  bottom: "fix"
+#  top: "loss"
+#}
 layer {
   name: "sm"
-  type: "Reshape"
-  bottom: "sm_softmax"
+  type: "Sigmoid"
+  bottom: "FCN7"
   top: "sm"
-  reshape_param {
-    shape {
-      dim: 0
-      dim: 1
-      dim: 60
-      dim: 80
-    }
-  }
 }
 layer {
   name: "upsample"
@@ -4643,9 +4677,15 @@ layer {
   }
 }
 layer {
-  name: "loss"
-  type: "KLDivLoss"
+  name: "normalzied_sm"
+  type: "MVN"
   bottom: "upsampledSm"
+  top: "normalzied_sm"
+}
+layer {
+  name: "loss"
+  type: "NSSLoss"
+  bottom: "normalzied_sm"
   bottom: "fix"
   top: "loss"
 }
