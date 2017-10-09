@@ -1,0 +1,342 @@
+name: "LeNet"
+input: "data"
+input_dim: 1
+input_dim: 1
+input_dim: 28
+input_dim: 28
+layer {
+  name: "conv1"
+  type: "Convolution"
+  bottom: "data"
+  top: "conv1"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 20
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "pool1"
+  type: "Pooling"
+  bottom: "conv1"
+  top: "pool1"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "pool1"
+  top: "conv2"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 50
+    kernel_size: 5
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "pool2"
+  type: "Pooling"
+  bottom: "conv2"
+  top: "pool2"
+  pooling_param {
+    pool: MAX
+    kernel_size: 2
+    stride: 2
+  }
+}
+#pool2 spatial LSTM
+layer {
+  name: "pool2_row_mirror"
+  type: "SpatialTransformer"
+  bottom: "pool2"
+  top: "pool2_row_mirror"
+  spatialtransformer_param {
+    mirror: true
+    operation: TRANSFORM
+  }
+}
+layer {
+  name: "pool2_row_bi"
+  type: "Concat"
+  bottom: "pool2"
+  bottom: "pool2_row_mirror"
+  top: "pool2_row_bi"
+  concat_param {
+    axis: 2
+  }
+}
+layer {
+  name: "pool2_row_format"
+  type: "SRNNFormat"
+  bottom: "pool2_row_bi"
+  top: "pool2_row_format"
+  top: "pool2_row_indicator"
+  top: "pool2_row_streamsize"
+  srnnformat_param {
+    operation: FORMAT
+  }
+}
+layer {
+  name: "pool2_row_rnn"
+  type: "LSTM"
+  bottom: "pool2_row_format"
+  bottom: "pool2_row_indicator"
+  top: "pool2_row_rnn"
+  propagate_down: true
+  propagate_down: false
+  recurrent_param {
+    num_output: 50
+    weight_filler {
+      type: "uniform"
+      min: -0.01
+      max: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "pool2_row_rnn_unformat"
+  type: "SRNNFormat"
+  bottom: "pool2_row_rnn"
+  bottom: "pool2_row_streamsize"
+  top: "pool2_row_rnn_unformat"
+  propagate_down: true
+  propagate_down: false
+  srnnformat_param {
+    operation: UNFORMAT
+  }
+}
+layer {
+  name: "pool2_row_rnn_slice"
+  type: "Slice"
+  bottom: "pool2_row_rnn_unformat"
+  top: "pool2_row1_rnn"
+  top: "pool2_row2_rnn"
+  slice_param {
+    axis: 2
+  }
+}
+layer {
+  name: "pool2_row2_rnn_untransform"
+  type: "SpatialTransformer"
+  bottom: "pool2_row2_rnn"
+  top: "pool2_row2_rnn_untransform"
+  spatialtransformer_param {
+    mirror: true
+    operation: UNTRANSFORM
+  }
+}
+layer {
+  name: "pool2_row_birnn"
+  type: "Concat"
+  bottom: "pool2_row1_rnn"
+  bottom: "pool2_row2_rnn_untransform"
+  top: "pool2_row_birnn"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  name: "pool2_col"
+  type: "SpatialTransformer"
+  bottom: "pool2_row_birnn"
+  top: "pool2_col"
+  spatialtransformer_param {
+    mirror: false
+	rotate: ROTATE90
+    operation: TRANSFORM
+  }
+}
+layer {
+  name: "pool2_col_mirror"
+  type: "SpatialTransformer"
+  bottom: "pool2_row_birnn"
+  top: "pool2_col_mirror"
+  spatialtransformer_param {
+    mirror: true
+	rotate: ROTATE90
+    operation: TRANSFORM
+  }
+}
+layer {
+  name: "pool2_col_bi"
+  type: "Concat"
+  bottom: "pool2_col"
+  bottom: "pool2_col_mirror"
+  top: "pool2_col_bi"
+  concat_param {
+    axis: 2
+  }
+}
+layer {
+  name: "pool2_col_format"
+  type: "SRNNFormat"
+  bottom: "pool2_col_bi"
+  top: "pool2_col_format"
+  top: "pool2_col_indicator"
+  top: "pool2_col_streamsize"
+  srnnformat_param {
+    operation: FORMAT
+  }
+}
+layer {
+  name: "pool2_col_rnn"
+  type: "LSTM"
+  bottom: "pool2_col_format"
+  bottom: "pool2_col_indicator"
+  top: "pool2_col_rnn"
+  propagate_down: true
+  propagate_down: false
+  recurrent_param {
+    num_output: 50
+    weight_filler {
+      type: "uniform"
+      min: -0.01
+      max: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "pool2_col_rnn_unformat"
+  type: "SRNNFormat"
+  bottom: "pool2_col_rnn"
+  bottom: "pool2_col_streamsize"
+  top: "pool2_col_rnn_unformat"
+  propagate_down: true
+  propagate_down: false
+  srnnformat_param {
+    operation: UNFORMAT
+  }
+}
+layer {
+  name: "pool2_col_rnn_slice"
+  type: "Slice"
+  bottom: "pool2_col_rnn_unformat"
+  top: "pool2_col1_rnn"
+  top: "pool2_col2_rnn"
+  slice_param {
+    axis: 2
+  }
+}
+layer {
+  name: "pool2_col1_rnn_untransform"
+  type: "SpatialTransformer"
+  bottom: "pool2_col1_rnn"
+  top: "pool2_col1_rnn_untransform"
+  spatialtransformer_param {
+    mirror: false
+	rotate: ROTATE90
+    operation: UNTRANSFORM
+  }
+}
+layer {
+  name: "pool2_col2_rnn_untransform"
+  type: "SpatialTransformer"
+  bottom: "pool2_col2_rnn"
+  top: "pool2_col2_rnn_untransform"
+  spatialtransformer_param {
+    mirror: true
+	rotate: ROTATE90
+    operation: UNTRANSFORM
+  }
+}
+layer {
+  name: "pool2_srnn"
+  type: "Concat"
+  bottom: "pool2_col1_rnn_untransform"
+  bottom: "pool2_col2_rnn_untransform"
+  top: "pool2_srnn"
+  concat_param {
+    axis: 1
+  }
+}
+# pool2 spatial LSTM end
+layer {
+  name: "ip1"
+  type: "InnerProduct"
+  bottom: "pool2_srnn"
+  top: "ip1"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  inner_product_param {
+    num_output: 500
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "relu1"
+  type: "ReLU"
+  bottom: "ip1"
+  top: "ip1"
+}
+layer {
+  name: "ip2"
+  type: "InnerProduct"
+  bottom: "ip1"
+  top: "ip2"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  inner_product_param {
+    num_output: 10
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "prob"
+  type: "Softmax"
+  bottom: "ip2"
+  top: "prob"
+}

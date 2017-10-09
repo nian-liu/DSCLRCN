@@ -1,0 +1,17 @@
+net: "EF_ResNet50_ML_DSCLSTM_train_val.prototxt"
+test_iter: 5000
+test_interval: 500
+base_lr: 0.01
+lr_policy: "step"
+gamma: 0.4
+stepsize: 500
+iter_size: 20
+display: 250
+max_iter: 5000
+momentum: 0.9
+weight_decay: 0.0005
+snapshot: 500
+snapshot_prefix: "models/EF_ResNet50_ML_DSCLSTM"
+solver_mode: GPU
+device_id: 0
+#debug_info: true

@@ -1,0 +1,309 @@
+name: "LeNet"
+layer {
+  name: "mnist"
+  type: "Data"
+  top: "data"
+  top: "label"
+  include {
+    phase: TRAIN
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  data_param {
+    source: "mnist_train_leveldb"
+    batch_size: 64
+    backend: LEVELDB
+  }
+}
+layer {
+  name: "mnist"
+  type: "Data"
+  top: "data"
+  top: "label"
+  include {
+    phase: TEST
+  }
+  transform_param {
+    scale: 0.00390625
+  }
+  data_param {
+    source: "mnist_test_leveldb"
+    batch_size: 100
+    backend: LEVELDB
+  }
+}
+layer {
+  name: "conv1"
+  type: "Convolution"
+  bottom: "data"
+  top: "conv1"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 20
+    kernel_size: 5
+	pad: 2
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  bottom: "conv1"
+  top: "conv1"
+  name: "relu1"
+  type: "ReLU"
+}
+layer {
+  name: "conv2"
+  type: "Convolution"
+  bottom: "conv1"
+  top: "conv2"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  convolution_param {
+    num_output: 50
+    kernel_size: 5
+	pad: 4
+	dilation: 2
+    stride: 1
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "NormalizedFm"
+  type: "Normalize"
+  bottom: "conv2"
+  top: "NormalizedFm"
+  param {
+    lr_mult: 1
+  }
+  norm_param {
+    #fix_scale: true
+	across_spatial: true
+	channel_shared: true
+    scale_filler{
+      type: "constant"
+	  value: 90
+    }
+  }
+}
+#NormalizedFm spatial LSTM, get global feature for attention calculation
+layer {
+  name: "NormalizedFm_row_format"
+  type: "SRNNFormat"
+  bottom: "NormalizedFm"
+  top: "NormalizedFm_row_format"
+  top: "NormalizedFm_row_indicator"
+  top: "NormalizedFm_row_streamsize"
+  srnnformat_param {
+    operation: FORMAT
+  }
+}
+layer {
+  name: "NormalizedFm_row_rnn"
+  type: "LSTM"
+  bottom: "NormalizedFm_row_format"
+  bottom: "NormalizedFm_row_indicator"
+  top: "NormalizedFm_row_rnn"
+  propagate_down: true
+  propagate_down: false
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  recurrent_param {
+    num_output: 500
+	lstm_additional_forget_bias: 1
+    weight_filler {
+      type: "uniform"
+      min: -0.2
+      max: 0.2
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "NormalizedFm_row_rnn_unformat"
+  type: "SRNNFormat"
+  bottom: "NormalizedFm_row_rnn"
+  bottom: "NormalizedFm_row_streamsize"
+  top: "NormalizedFm_row_rnn_unformat"
+  propagate_down: true
+  propagate_down: false
+  srnnformat_param {
+    operation: UNFORMAT
+  }
+}
+layer {
+  name: "NormalizedFm_row_rnn_slice"
+  type: "Slice"
+  bottom: "NormalizedFm_row_rnn_unformat"
+  top: "NormalizedFm_row_rnn_col_other"
+  top: "NormalizedFm_row_rnn_col_last"
+  slice_param {
+    axis: 3
+	slice_point: 27
+  }
+}
+layer {
+  name: "NormalizedFm_row_rnn_col_other_silence"
+  type: "Silence"
+  bottom: "NormalizedFm_row_rnn_col_other"
+}
+layer {
+  name: "NormalizedFm_col"
+  type: "SpatialTransformer"
+  bottom: "NormalizedFm_row_rnn_col_last"
+  top: "NormalizedFm_col"
+  spatialtransformer_param {
+    mirror: false
+	rotate: ROTATE90
+    operation: TRANSFORM
+  }
+}
+layer {
+  name: "NormalizedFm_col_format"
+  type: "SRNNFormat"
+  bottom: "NormalizedFm_col"
+  top: "NormalizedFm_col_format"
+  top: "NormalizedFm_col_indicator"
+  top: "NormalizedFm_col_streamsize"
+  srnnformat_param {
+    operation: FORMAT
+  }
+}
+layer {
+  name: "NormalizedFm_col_rnn"
+  type: "LSTM"
+  bottom: "NormalizedFm_col_format"
+  bottom: "NormalizedFm_col_indicator"
+  top: "NormalizedFm_col_rnn"
+  propagate_down: true
+  propagate_down: false
+  param {
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
+  recurrent_param {
+    num_output: 500
+	lstm_additional_forget_bias: 1
+    weight_filler {
+      type: "uniform"
+      min: -0.2
+      max: 0.2
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "NormalizedFm_col_rnn_unformat"
+  type: "SRNNFormat"
+  bottom: "NormalizedFm_col_rnn"
+  bottom: "NormalizedFm_col_streamsize"
+  top: "NormalizedFm_col_rnn_unformat"
+  propagate_down: true
+  propagate_down: false
+  srnnformat_param {
+    operation: UNFORMAT
+  }
+}
+layer {
+  name: "NormalizedFm_col_rnn_untransform"
+  type: "SpatialTransformer"
+  bottom: "NormalizedFm_col_rnn_unformat"
+  top: "NormalizedFm_col_rnn_untransform"
+  spatialtransformer_param {
+    mirror: false
+	rotate: ROTATE90
+    operation: UNTRANSFORM
+  }
+}
+layer {
+  name: "NormalizedFm_col_rnn_slice"
+  type: "Slice"
+  bottom: "NormalizedFm_col_rnn_untransform"
+  #NormalizedFm_col_rnn_row_1
+  top: "global_feature"   
+  top: "NormalizedFm_col_rnn_row_other"
+  slice_param {
+    axis: 2
+	slice_point: 1
+  }
+}
+layer {
+  name: "NormalizedFm_col_rnn_row_other_silence"
+  type: "Silence"
+  bottom: "NormalizedFm_col_rnn_row_other"
+}
+# NormalizedFm spatial LSTM global feature end
+layer {
+  name: "ip2"
+  type: "InnerProduct"
+  bottom: "global_feature"
+  top: "ip2"
+  param {
+    lr_mult: 1
+  }
+  param {
+    lr_mult: 2
+  }
+  inner_product_param {
+    num_output: 10
+    weight_filler {
+      type: "xavier"
+    }
+    bias_filler {
+      type: "constant"
+    }
+  }
+}
+layer {
+  name: "accuracy"
+  type: "Accuracy"
+  bottom: "ip2"
+  bottom: "label"
+  top: "accuracy"
+  include {
+    phase: TEST
+  }
+}
+layer {
+  name: "loss"
+  type: "SoftmaxWithLoss"
+  bottom: "ip2"
+  bottom: "label"
+  top: "loss"
+}
