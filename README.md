@@ -5,7 +5,7 @@ Note: our network needs the pretrained [ResNet50](https://github.com/KaimingHe/d
 
 ## Citing our work
 Please kindly cite our work in your publications if it helps your research:
-
+```
 @article{liu2018deep,
   title={A Deep Spatial Contextual Long-Term Recurrent Convolutional Network for Saliency Detection},
   author={Liu, Nian and Han, Junwei},
@@ -16,3 +16,4 @@ Please kindly cite our work in your publications if it helps your research:
   year={2018},
   publisher={IEEE}
 }
+```
